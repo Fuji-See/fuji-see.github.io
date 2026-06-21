@@ -10,10 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     const FUJI_LAT = 35.3606;
     const FUJI_LON = 138.7273;
-    const WEATHER_API_URL = `https://api.open-meteo.com/v1/forecast?latitude=${FUJI_LAT}&longitude=${FUJI_LON}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m&timezone=Asia%2FTokyo&forecast_days=2`;
+    let activeLat = FUJI_LAT;
+    let activeLon = FUJI_LON;
 
     // Miradores de referencia
     const VIEWPOINTS = [
+        { name: 'Cumbre del Monte Fuji (Cima)', lat: 35.3606, lon: 138.7273, desc: 'Punto de medición principal en la cima.' },
         { name: 'Oishi Park (Lago Kawaguchiko)', lat: 35.5222, lon: 138.7490, desc: 'Clásica vista junto al lago y flores.' },
         { name: 'Chureito Pagoda (Fujiyoshida)', lat: 35.5011, lon: 138.8015, desc: 'Pagoda roja con el Fuji de fondo.' },
         { name: 'Panorama台 (Lago Yamanakako)', lat: 35.4223, lon: 138.9056, desc: 'Gran vista panorámica elevada.' },
@@ -162,7 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
             elLoading.classList.remove('hidden');
             elMain.classList.add('hidden');
 
-            const res = await fetch(WEATHER_API_URL);
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${activeLat}&longitude=${activeLon}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m&timezone=Asia%2FTokyo&forecast_days=2`;
+            const res = await fetch(url);
             if (!res.ok) throw new Error('Error al conectar con la API de clima');
             
             weatherData = await res.json();
@@ -204,6 +207,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Mostrar datos climatológicos para el índice actual
         updateActiveHour(currentIndex);
+
+        // Actualizar el nombre del mirador activo en la UI
+        const currentVp = VIEWPOINTS.find(vp => vp.lat === activeLat && vp.lon === activeLon) || VIEWPOINTS[0];
+        const elActiveVpName = document.getElementById('active-vp-name');
+        if (elActiveVpName) {
+            elActiveVpName.textContent = currentVp.name.split(' (')[0];
+        }
     }
 
     function updateActiveHour(index) {
@@ -424,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             viewpointsToRender.forEach(vp => {
                 vp.distance = calculateDistance(userLocation.lat, userLocation.lon, vp.lat, vp.lon);
             });
-            // Ordenar de más cercano a más lejano
+            // Ordenar de más cercano a más lejano (pero manteniendo la Cumbre de primera si es la seleccionada, o simplemente ordenar)
             viewpointsToRender.sort((a, b) => a.distance - b.distance);
         }
 
@@ -439,8 +449,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${vp.lat},${vp.lon}&travelmode=driving`;
 
+            const isSelected = (vp.lat === activeLat && vp.lon === activeLon);
+
             const card = document.createElement('div');
-            card.className = 'bg-white/60 hover:bg-white/95 transition-all p-4 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm group';
+            card.className = `transition-all p-4 rounded-2xl border flex items-center justify-between shadow-sm group cursor-pointer ${
+                isSelected 
+                    ? 'border-sky-500 bg-sky-50/40 ring-1 ring-sky-100' 
+                    : 'bg-white/60 hover:bg-white/95 border-slate-100'
+            }`;
+            
             card.innerHTML = `
                 <div class="flex-grow pr-4">
                     <h4 class="text-sm font-bold text-slate-800 leading-tight group-hover:text-sky-700 transition-colors">${vp.name}</h4>
@@ -454,6 +471,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     <i data-lucide="external-link" class="w-4 h-4"></i>
                 </a>
             `;
+
+            // Click listener para seleccionar el mirador
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return; // No hacer nada si se hace clic en el enlace de mapas
+                activeLat = vp.lat;
+                activeLon = vp.lon;
+                fetchWeather();
+            });
+
             elViewpointsContainer.appendChild(card);
         });
 
