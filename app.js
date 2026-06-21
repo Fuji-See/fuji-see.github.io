@@ -354,9 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let bestIndex = startIndex;
         let maxScore = -1;
 
-        // Queremos mostrar las próximas 6 ventanas horarias significativas (cada 3-4 horas)
-        // Ejemplo: ahora, +3h, +6h, +9h, +12h, +18h, +24h
-        const offsets = [0, 3, 6, 9, 12, 18, 24];
+        // Mostrar ventanas horarias clave a lo largo de las próximas 48 horas
+        const offsets = [0, 3, 6, 9, 12, 18, 24, 30, 36, 42, 48];
         
         offsets.forEach(offset => {
             const idx = startIndex + offset;
@@ -364,7 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const timeStr = hourly.time[idx];
             const dateObj = new Date(timeStr);
+            const isNewDay = offset > 0 && new Date(hourly.time[startIndex]).getDate() !== dateObj.getDate();
             const formattedTime = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const label = offset === 0 ? 'Ahora' : (isNewDay ? `D+2 ${formattedTime}` : formattedTime);
             
             const cloudLow = hourly.cloud_cover_low[idx];
             const cloudMid = hourly.cloud_cover_mid[idx];
@@ -377,8 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const score = calculateFujiVisibility(cloudTotal, cloudLow, cloudMid, cloudHigh, hum, press, wind, hr);
             
-            // Buscar el máximo score en las próximas 24 horas para la ventana recomendada
-            if (offset <= 24 && score > maxScore) {
+            // Buscar el máximo score en las próximas 48 horas para la ventana recomendada
+            if (offset <= 48 && score > maxScore) {
                 maxScore = score;
                 bestIndex = idx;
             }
@@ -393,10 +394,10 @@ document.addEventListener('DOMContentLoaded', () => {
             timelineCol.className = 'timeline-col flex flex-col items-center gap-1.5 shrink-0 py-2 px-2.5 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm cursor-pointer hover:bg-white/70 active:scale-95 transition-all duration-200';
             timelineCol.dataset.index = idx;
             timelineCol.innerHTML = `
-                <span class="text-xs font-semibold text-slate-500">${offset === 0 ? 'Ahora' : formattedTime}</span>
+                <span class="text-xs font-semibold text-slate-500 text-center leading-tight">${label}</span>
                 <div class="w-12 h-12 rounded-full ${scoreColor} text-white flex flex-col items-center justify-center shadow-inner leading-none">
                     <span class="text-base font-black leading-none">${score}</span>
-                    <span class="text-[9px] font-bold opacity-80">%</span>
+                    <span class="text-xs font-black opacity-90">%</span>
                 </div>
                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${getStatusDetails(score).text}</span>
             `;
@@ -440,10 +441,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (diff < minDiff) { minDiff = diff; currentIndex = i; }
                 }
 
-                // Buscar el mejor score en las próximas 24 horas
+                // Buscar el mejor score en las próximas 48 horas
                 let bestScore = -1;
                 let bestIdx = currentIndex;
-                for (let offset = 0; offset <= 24; offset++) {
+                for (let offset = 0; offset <= 48; offset++) {
                     const idx = currentIndex + offset;
                     if (idx >= hourly.time.length) break;
                     const score = calculateFujiVisibility(
