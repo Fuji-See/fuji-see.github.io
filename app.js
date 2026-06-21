@@ -68,6 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // ----------------------------------------------------
+    // Reloj local de Japón (Asia/Tokyo)
+    // ----------------------------------------------------
+    function updateJapanClock() {
+        const elClock = document.getElementById('japan-clock');
+        if (!elClock) return;
+        const now = new Date();
+        const opts = { timeZone: 'Asia/Tokyo', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        elClock.textContent = now.toLocaleString('es-ES', opts) + ' (JST)';
+    }
+    updateJapanClock();
+    setInterval(updateJapanClock, 1000);
+
+    // ----------------------------------------------------
     // Algoritmo de Cálculo de Visibilidad
     // ----------------------------------------------------
     function calculateFujiVisibility(cloudsTotal, cloudsLow, cloudsMid, cloudsHigh, humidity, pressure, windSpeed, hour) {
@@ -374,12 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (score >= 31) scoreColor = 'bg-amber-500';
 
             const timelineCol = document.createElement('div');
-            timelineCol.className = 'timeline-col flex flex-col items-center gap-2 shrink-0 py-1.5 px-3 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm cursor-pointer hover:bg-white/70 active:scale-95 transition-all duration-200';
+            timelineCol.className = 'timeline-col flex flex-col items-center gap-1.5 shrink-0 py-2 px-2.5 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm cursor-pointer hover:bg-white/70 active:scale-95 transition-all duration-200';
             timelineCol.dataset.index = idx;
             timelineCol.innerHTML = `
                 <span class="text-xs font-semibold text-slate-500">${offset === 0 ? 'Ahora' : formattedTime}</span>
-                <div class="w-9 h-9 rounded-full ${scoreColor} text-white font-black text-sm flex items-center justify-center shadow-inner">
-                    ${score}
+                <div class="w-12 h-12 rounded-full ${scoreColor} text-white flex flex-col items-center justify-center shadow-inner leading-none">
+                    <span class="text-base font-black leading-none">${score}</span>
+                    <span class="text-[9px] font-bold opacity-80">%</span>
                 </div>
                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${getStatusDetails(score).text}</span>
             `;
@@ -443,6 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `${vp.distance.toFixed(1)} km de ti` 
                 : 'Distancia desconocida';
 
+            // Distancia en línea recta desde este mirador hasta la cima del Fuji
+            const distToFuji = calculateDistance(vp.lat, vp.lon, FUJI_LAT, FUJI_LON);
+            const distToFujiText = vp.lat === FUJI_LAT && vp.lon === FUJI_LON
+                ? '📍 Punto de referencia (Cima)'
+                : `🗻 ${distToFuji.toFixed(1)} km hasta la cima`;
+
             const originParam = userLocation 
                 ? `${userLocation.lat},${userLocation.lon}` 
                 : 'current_location';
@@ -462,9 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex-grow pr-4">
                     <h4 class="text-sm font-bold text-slate-800 leading-tight group-hover:text-sky-700 transition-colors">${vp.name}</h4>
                     <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${vp.desc}</p>
-                    <div class="flex items-center gap-1 text-[10px] font-bold text-slate-500 mt-2">
-                        <i data-lucide="navigation-2" class="w-3 h-3 text-slate-400"></i>
-                        <span>${distanceText}</span>
+                    <div class="flex flex-col gap-1 mt-2">
+                        ${userLocation ? `<div class="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                            <i data-lucide="navigation-2" class="w-3 h-3 text-slate-400"></i>
+                            <span>${distanceText}</span>
+                        </div>` : ''}
+                        <div class="text-[10px] font-bold text-slate-500">${distToFujiText}</div>
                     </div>
                 </div>
                 <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer" class="p-3 bg-sky-50 text-sky-600 rounded-xl hover:bg-sky-600 hover:text-white transition-all shrink-0 shadow-sm active:scale-95 flex items-center justify-center" title="Cómo llegar">
