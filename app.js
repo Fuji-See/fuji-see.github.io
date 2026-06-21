@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     const FUJI_LAT = 35.3606;
     const FUJI_LON = 138.7273;
-    let activeLat = FUJI_LAT;
-    let activeLon = FUJI_LON;
+    // Coordenadas activas por defecto: Oishi Park (primer mirador)
+    let activeLat = 35.5222;
+    let activeLon = 138.7490;
 
-    // Miradores de referencia
+    // Miradores de referencia (sin la cima — ésta solo aparece como icono en el mapa)
     const VIEWPOINTS = [
-        { name: 'Cumbre del Monte Fuji (Cima)', lat: 35.3606, lon: 138.7273, desc: 'Punto de medición principal en la cima.' },
         { name: 'Oishi Park (Lago Kawaguchiko)', lat: 35.5222, lon: 138.7490, desc: 'Clásica vista junto al lago y flores.' },
         { name: 'Chureito Pagoda (Fujiyoshida)', lat: 35.5011, lon: 138.8015, desc: 'Pagoda roja con el Fuji de fondo.' },
         { name: 'Panorama台 (Lago Yamanakako)', lat: 35.4223, lon: 138.9056, desc: 'Gran vista panorámica elevada.' },
