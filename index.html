@@ -40,6 +40,25 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Leaflet Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* Leaflet fix para estar dentro de un contenedor con overflow hidden */
+        #fuji-map { width: 100%; height: 300px; z-index: 1; }
+        .leaflet-popup-content-wrapper {
+            border-radius: 16px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .leaflet-popup-content { margin: 12px 14px !important; }
+        .leaflet-control-zoom a {
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 700 !important;
+        }
+    </style>
+
     <style>
         /* Ajuste de scroll y estética de app nativa iOS */
         body {
@@ -194,6 +213,18 @@
                     <!-- Filas por mirador cargadas dinámicamente -->
                     <p id="txt-best-window" class="text-sm font-medium text-orange-950">Calculando...</p>
                 </div>
+            </section>
+
+            <!-- MAPA INTERACTIVO -->
+            <section class="glass-panel rounded-3xl overflow-hidden shadow-sm">
+                <div class="px-5 pt-5 pb-3 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <i data-lucide="map" class="w-4 h-4 text-slate-500"></i>
+                        Mapa de visibilidad
+                    </h3>
+                    <span class="text-[10px] text-slate-400 font-medium">Toca un marcador para detalles</span>
+                </div>
+                <div id="fuji-map"></div>
             </section>
 
             <!-- CÓMO LLEGAR & GEOLOCALIZACIÓN -->

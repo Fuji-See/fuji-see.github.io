@@ -64,6 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentStatus = {};
     let userLocation = null;
 
+    // Estado del mapa Leaflet
+    let map = null;
+    let mapMarkers = [];
+    let userMapMarker = null;
+
     // Inicializar iconos de Lucide
     lucide.createIcons();
 
@@ -230,6 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Calcular mejores ventanas de todos los miradores
         computeAllBestWindows();
+
+        // Inicializar mapa (solo la primera vez)
+        initMap();
     }
 
     function updateActiveHour(index) {
@@ -499,6 +507,145 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             container.appendChild(row);
         });
+
+        // Actualizar marcadores del mapa con los resultados calculados
+        updateMapMarkers(sorted);
+    }
+
+    // ----------------------------------------------------
+    // Mapa Leaflet Interactivo
+    // ----------------------------------------------------
+    function initMap() {
+        if (map) { map.invalidateSize(); return; }
+
+        map = L.map('fuji-map', {
+            center: [35.5, 138.75],
+            zoom: 9,
+            zoomControl: true,
+            scrollWheelZoom: true
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Marcador especial de la cima del Fuji
+        const fujiIcon = L.divIcon({
+            className: '',
+            html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">🗻</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -20]
+        });
+        L.marker([FUJI_LAT, FUJI_LON], { icon: fujiIcon })
+            .addTo(map)
+            .bindPopup(`<div style="font-family:Outfit,sans-serif;text-align:center;">
+                <p style="font-weight:900;font-size:14px;margin:0;">Monte Fuji 🗻</p>
+                <p style="font-size:11px;color:#64748b;margin:4px 0 0;">Cima • 3.776 m de altitud</p>
+            </div>`);
+    }
+
+    function updateMapMarkers(results) {
+        if (!map) return;
+
+        // Limpiar marcadores anteriores de miradores
+        mapMarkers.forEach(m => map.removeLayer(m));
+        mapMarkers = [];
+
+        const now = new Date();
+
+        results.forEach(({ vp, bestScore, bestDate }) => {
+            // Saltar la cima (ya tiene su propio icono fijo)
+            if (vp.lat === FUJI_LAT && vp.lon === FUJI_LON) return;
+
+            // Color según score
+            let color = '#f43f5e';
+            if (bestScore >= 81)      color = '#10b981';
+            else if (bestScore >= 61) color = '#14b8a6';
+            else if (bestScore >= 31) color = '#f59e0b';
+
+            const isToday = bestDate.getDate() === now.getDate();
+            const dayLabel = isToday ? 'Hoy' : 'Mañana';
+            const timeLabel = bestDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const dateLabel = bestDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Tokyo' });
+            const statusLabel = getStatusDetails(bestScore).text;
+
+            // Icono personalizado con score y %
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="
+                    background:${color};
+                    width:48px;height:48px;
+                    border-radius:50%;
+                    display:flex;flex-direction:column;
+                    align-items:center;justify-content:center;
+                    border:3px solid white;
+                    box-shadow:0 3px 12px rgba(0,0,0,0.35);
+                    color:white;
+                    font-family:'Outfit',sans-serif;
+                    line-height:1;
+                    cursor:pointer;
+                ">
+                    <span style="font-size:15px;font-weight:900;">${bestScore}</span>
+                    <span style="font-size:10px;font-weight:800;opacity:0.9;">%</span>
+                </div>`,
+                iconSize: [48, 48],
+                iconAnchor: [24, 24],
+                popupAnchor: [0, -28]
+            });
+
+            const popup = `
+                <div style="font-family:'Outfit',sans-serif;min-width:170px;">
+                    <p style="font-weight:800;font-size:13px;margin:0 0 2px;color:#1e293b;">${vp.name}</p>
+                    <p style="font-size:11px;color:#94a3b8;margin:0 0 8px;">${vp.desc}</p>
+                    <div style="display:flex;align-items:center;gap:8px;background:${color}18;border-radius:10px;padding:8px 10px;border:1px solid ${color}30;">
+                        <div style="background:${color};color:white;border-radius:50%;width:40px;height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-family:'Outfit',sans-serif;line-height:1;">
+                            <span style="font-size:14px;font-weight:900;">${bestScore}</span>
+                            <span style="font-size:9px;font-weight:800;opacity:0.9;">%</span>
+                        </div>
+                        <div>
+                            <p style="font-size:12px;font-weight:800;color:#1e293b;margin:0;">${statusLabel}</p>
+                            <p style="font-size:10px;color:#64748b;margin:2px 0 0;">${dayLabel} • ${dateLabel}</p>
+                            <p style="font-size:11px;font-weight:700;color:${color};margin:2px 0 0;">⏰ ${timeLabel} (JST)</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            const marker = L.marker([vp.lat, vp.lon], { icon })
+                .addTo(map)
+                .bindPopup(popup);
+            mapMarkers.push(marker);
+        });
+    }
+
+    function updateUserMapMarker() {
+        if (!map || !userLocation) return;
+
+        // Eliminar marcador anterior del usuario si existe
+        if (userMapMarker) { map.removeLayer(userMapMarker); userMapMarker = null; }
+
+        const userIcon = L.divIcon({
+            className: '',
+            html: `<div style="
+                background:#3b82f6;
+                width:18px;height:18px;
+                border-radius:50%;
+                border:3px solid white;
+                box-shadow:0 0 0 4px rgba(59,130,246,0.3),0 2px 8px rgba(0,0,0,0.3);
+            "></div>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+            popupAnchor: [0, -12]
+        });
+
+        userMapMarker = L.marker([userLocation.lat, userLocation.lon], { icon: userIcon })
+            .addTo(map)
+            .bindPopup(`<div style="font-family:'Outfit',sans-serif;text-align:center;">
+                <p style="font-weight:800;font-size:13px;margin:0;color:#1e293b;">Tú estás aquí 📍</p>
+            </div>`);
+
+        map.setView([userLocation.lat, userLocation.lon], 10);
     }
 
     // ----------------------------------------------------
@@ -608,6 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elBtnGeolocate.classList.remove('text-sky-600');
                 elBtnGeolocate.classList.add('text-emerald-600');
                 renderViewpoints();
+                updateUserMapMarker();
             },
             (error) => {
                 console.error(error);
