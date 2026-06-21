@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Renderizar Timeline del día y calcular el mejor momento
+        // Renderizar Timeline del día
         renderTimelineAndBestWindow(currentIndex);
 
         // Renderizar miradores iniciales
@@ -227,6 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elActiveVpName) {
             elActiveVpName.textContent = currentVp.name.split(' (')[0];
         }
+
+        // Calcular mejores ventanas de todos los miradores
+        computeAllBestWindows();
     }
 
     function updateActiveHour(index) {
@@ -403,23 +406,98 @@ document.addEventListener('DOMContentLoaded', () => {
             elTimelineContainer.appendChild(timelineCol);
         });
 
-        // Actualizar la mejor ventana de visualización recomendada
+        // Actualizar la mejor ventana de visualización (solo del mirador activo en el timeline)
         const bestDate = new Date(hourly.time[bestIndex]);
         const bestTimeStr = bestDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         const bestDay = bestDate.getDate() === new Date().getDate() ? 'Hoy' : 'Mañana';
-        
-        let recommendationText = '';
-        if (maxScore >= 81) {
-            recommendationText = `${bestDay} a las ${bestTimeStr} con un excelente ${maxScore}% de visibilidad. ¡Planifica tu viaje!`;
-        } else if (maxScore >= 61) {
-            recommendationText = `${bestDay} a las ${bestTimeStr} (${maxScore}% de visibilidad). Buenas condiciones de cielo despejado.`;
-        } else if (maxScore >= 31) {
-            recommendationText = `${bestDay} a las ${bestTimeStr} (${maxScore}%). Condiciones muy inestables. Ve con precaución.`;
-        } else {
-            recommendationText = 'No se esperan ventanas de buena visibilidad en las próximas 24 horas. El Fuji estará bastante nublado.';
-        }
+        // (La recomendación global de todos los miradores se pinta en computeAllBestWindows)
+    }
 
-        elTxtBestWindow.textContent = recommendationText;
+    // ------------------------------------------------------------------
+    // Mejor ventana de TODOS los miradores (consultas paralelas a la API)
+    // ------------------------------------------------------------------
+    async function computeAllBestWindows() {
+        const container = document.getElementById('best-windows-container');
+        if (!container) return;
+        container.innerHTML = '<p class="text-sm text-orange-800 animate-pulse">Consultando todos los miradores...</p>';
+
+        const now = new Date();
+
+        // Consultar la API para cada mirador en paralelo
+        const results = await Promise.all(VIEWPOINTS.map(async (vp) => {
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${vp.lat}&longitude=${vp.lon}&hourly=temperature_2m,relative_humidity_2m,pressure_msl,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m&timezone=Asia%2FTokyo&forecast_days=2`;
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const data = await res.json();
+                const hourly = data.hourly;
+
+                // Encontrar el índice actual
+                let currentIndex = 0;
+                let minDiff = Infinity;
+                for (let i = 0; i < hourly.time.length; i++) {
+                    const diff = Math.abs(now - new Date(hourly.time[i]));
+                    if (diff < minDiff) { minDiff = diff; currentIndex = i; }
+                }
+
+                // Buscar el mejor score en las próximas 24 horas
+                let bestScore = -1;
+                let bestIdx = currentIndex;
+                for (let offset = 0; offset <= 24; offset++) {
+                    const idx = currentIndex + offset;
+                    if (idx >= hourly.time.length) break;
+                    const score = calculateFujiVisibility(
+                        hourly.cloud_cover[idx],
+                        hourly.cloud_cover_low[idx],
+                        hourly.cloud_cover_mid[idx],
+                        hourly.cloud_cover_high[idx],
+                        hourly.relative_humidity_2m[idx],
+                        hourly.pressure_msl[idx],
+                        hourly.wind_speed_10m[idx],
+                        new Date(hourly.time[idx]).getHours()
+                    );
+                    if (score > bestScore) { bestScore = score; bestIdx = idx; }
+                }
+
+                const bestDate = new Date(hourly.time[bestIdx]);
+                return { vp, bestScore, bestDate };
+            } catch {
+                return null;
+            }
+        }));
+
+        // Ordenar por mejor score descendente
+        const sorted = results
+            .filter(r => r !== null)
+            .sort((a, b) => b.bestScore - a.bestScore);
+
+        container.innerHTML = '';
+
+        sorted.forEach(({ vp, bestScore, bestDate }) => {
+            const isToday = bestDate.getDate() === now.getDate();
+            const dayLabel = isToday ? 'Hoy' : 'Mañana';
+            const timeLabel = bestDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            let scoreBg = 'bg-rose-500';
+            let scoreText = 'text-rose-600';
+            if (bestScore >= 81) { scoreBg = 'bg-emerald-500'; scoreText = 'text-emerald-700'; }
+            else if (bestScore >= 61) { scoreBg = 'bg-teal-500'; scoreText = 'text-teal-700'; }
+            else if (bestScore >= 31) { scoreBg = 'bg-amber-500'; scoreText = 'text-amber-700'; }
+
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-3 bg-white/50 rounded-xl px-3 py-2.5 border border-orange-100';
+            row.innerHTML = `
+                <div class="w-11 h-11 rounded-full ${scoreBg} text-white flex flex-col items-center justify-center shadow-sm shrink-0 leading-none">
+                    <span class="text-sm font-black leading-none">${bestScore}</span>
+                    <span class="text-xs font-black opacity-90">%</span>
+                </div>
+                <div class="flex-grow min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${vp.name}</p>
+                    <p class="text-[11px] ${scoreText} font-semibold mt-0.5">${dayLabel} a las ${timeLabel} • ${getStatusDetails(bestScore).text}</p>
+                </div>
+            `;
+            container.appendChild(row);
+        });
     }
 
     // ----------------------------------------------------

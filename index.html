@@ -183,13 +183,16 @@
             </section>
 
             <!-- MEJOR MOMENTO DEL DÍA -->
-            <section class="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-orange-200/50 rounded-2xl p-4 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 shrink-0">
-                    <i data-lucide="sunrise" class="w-6 h-6"></i>
+            <section class="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-orange-200/50 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 shrink-0">
+                        <i data-lucide="sunrise" class="w-5 h-5"></i>
+                    </div>
+                    <h4 class="text-xs font-bold text-orange-900 uppercase tracking-wider">Mejor ventana recomendada — todos los miradores</h4>
                 </div>
-                <div>
-                    <h4 class="text-xs font-bold text-orange-900 uppercase tracking-wider">Mejor ventana recomendada</h4>
-                    <p id="txt-best-window" class="text-sm font-medium text-orange-950 mt-0.5">--</p>
+                <div id="best-windows-container" class="flex flex-col gap-2">
+                    <!-- Filas por mirador cargadas dinámicamente -->
+                    <p id="txt-best-window" class="text-sm font-medium text-orange-950">Calculando...</p>
                 </div>
             </section>
 
